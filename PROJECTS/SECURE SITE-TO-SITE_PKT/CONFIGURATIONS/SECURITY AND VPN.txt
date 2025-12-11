@@ -1,0 +1,136 @@
+INTERNET SECURITY AND VPN
+
+TOR-RT
+
+conf t
+class-map type inspect match-any TORLAN_TRAFFIC (change name 'TORLAN-TRAFFIC')
+match protocol http
+match protocol https
+match protocol dns
+match protocol icmp
+match protocol ftp
+match protocol telnet
+match protocol smtp
+match protocol pop3
+ex
+copy r t
+wr
+show running-config | section class-map
+
+policy-map type inspect INSPECT_POLICY (change INSPECT_POLICY)
+class type inspect INTERNET_TRAFFIC
+inspect
+ex
+wr
+copy r st
+show running-config | section policy-map
+
+zone security INTERNAL_ZONE
+zone security INTERNET_ZONE
+show zone security
+
+interface GigabitEthernet0/0/0 
+zone-member security INTERNAL_ZONE
+exit
+interface GigabitEthernet0/0/1 
+zone-member security INTERNET_ZONE
+exit
+interface serial 0/1/0
+zone-member security INTERNET_ZONE
+exit
+wr
+copy r st
+show zone security
+
+zone-pair security LAN_TO_INTERNET source INTERNAL_ZONE destination INTERNET_ZONE
+service-policy type inspect INSPECT_POLICY
+show zone-pair security
+
+
+
+PART 4
+
+MTL-RT
+
+ip route 172.31.51.0 255.255.255.0 10.1.51.2
+exit
+
+crypto isakmp policy 20
+hash sha
+authentication pre-share
+group 5
+lifetime 3600
+encryption aes 256
+exit
+
+
+crypto isakmp key cisco123451 address 10.1.51.2 (cisco1234xx)
+
+
+crypto ipsec transform-set TRANSFORM esp-aes 256 esp-sha-hmac (change TRANSFORM)
+show crypto ipsec transform-set
+
+access-list 101 permit ip 192.168.51.0 0.0.0.255 172.31.51.1 0.0.0.255
+crypto map CRYPTO_MAP 10 ipsec-isakmp
+set peer 10.1.51.2
+set transform-set TRANSFORM
+match address 101
+show access-lists 
+show crypto map
+
+interface s0/1/0
+crypto map CRYPTO_MAP
+exit
+
+show crypto ipsec sa
+show crypto isakmp sa
+
+ping LANS
+
+
+
+
+TOR-RT
+
+ip route 192.168.51.0 255.255.255.0 10.1.51.1
+exit
+
+crypto isakmp policy 20
+hash sha
+authentication pre-share
+group 5
+lifetime 3600
+encryption aes 256
+exit
+show crypto isakmp policy
+
+crypto isakmp key cisco123451 address 10.1.51.1 (cisco1234xx)
+show running-config | include crypto isakmp key
+
+crypto ipsec transform-set TRANSFORM esp-aes 256 esp-sha-hmac (change TRANSFORM)
+show crypto ipsec transform-set
+exit
+
+access-list 101 permit ip 172.31.51.0 0.0.0.255 192.168.51.1 0.0.0.255
+exit
+show access-lists 
+show crypto map
+
+crypto map CRYPTO_MAP 10 ipsec-isakmp
+set peer 10.1.51.1
+set transform-set TRANSFORM
+match address 101
+exit
+show crypto ipsec transform-set
+
+interface s0/1/0
+crypto map CRYPTO_MAP
+exit
+
+ping LANS
+
+
+
+
+
+

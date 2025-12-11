@@ -1,0 +1,144 @@
+TOR-RT
+
+PART 1
+
+interface GigabitEthernet0/0/0
+ip address 172.31.54.1 255.255.255.0
+no shutdown
+interface GigabitEthernet0/0/0
+ip address 209.165.51.1
+no shutdown
+interface Serial0/1/0
+ip address 10.1.54.2 255.255.255.252
+no shutdown
+route 192.168.51.0 255.255.255.0 10.1.51.1
+
+router ospf 1
+network 172.31.54.0 0.0.0.255 area 0
+network 10.1.51.0 0.0.0.3 area 0
+network 209.165.51.0 0.0.0.15 area 0
+default-information originate
+access-list 1 permit 172.31.54.0 0.0.0.255
+
+interface GigabitEthernet0/0/1
+ip nat outside
+interface GigabitEthernet0/0/0
+ip nat inside
+ip nat inside source list 1 interface GigabitEthernet0/0/1 overload
+
+
+ip dhcp pool ISP
+network 209.165.51.0 255.255.255.240
+defaut-router 209.165.51.1
+dns-server 209.165.51.14
+exit
+
+ip domain-name cisco51.com
+
+ntp server 192.168.51.200
+ntp master 1
+ntp authenticate
+ntp trusted-key 1
+ntp authentication-key 1 md5 cisco123451
+service timestamps log datetime msec
+logging 192.168.51.200
+
+logging host 172.31.51.250
+logging trap debugging
+logging on
+
+wr
+cop r st
+
+
+PART 2
+
+crypto key generate rsa
+ip ssh version 2
+line vty 0 4
+transport input ssh
+login local
+
+ine console 0
+password cisco123451
+login
+enable secret cisco123451
+login
+line vty 0 4
+password cisco123451
+login
+service password-encryption
+
+wr
+cop r st
+
+
+
+TOR-SW
+
+PART 1
+
+hostname TOR-SW
+interface vlan 1
+ip address 172.31.51.254 255.255.255.0
+no shutdown
+ip default-gateway 172.31.51.1
+
+ntp server 192.168.51.200
+ntp master 1
+ntp authenticate
+ntp trusted-key 1
+ntp authentication-key 1 md5 cisco123451
+service timestamps log datetime msec
+logging 192.168.51.250
+
+logging host 172.31.51.250
+logging trap debugging
+logging on
+
+wr
+cop r st
+
+
+
+PART 2
+
+line console 0
+password cisco123451
+login
+enable secret cisco123451
+login
+line vty 0 4
+password cisco123451
+login
+service password-encryption
+
+
+dot1x system-auth-control
+interface fastethernet 0/1
+switchport mode access
+dot1x port-control auto
+dot1x system-auth-control
+aaa new-model
+aaa authentication dot1x default group radius
+radius-server host 192.168.51.250 auth-port 1645 key cisco123451
+dot1x system-auth-control
+interface range fastethernet 0/4-5
+authentication port-control auto
+dot1x port-control auto
+dot1x pae authenticator
+interface range fastethernet 0/4
+switchport mode access
+authentication port-control auto
+dot1x pae authenticator
+interface range fastethernet 0/5
+switchport mode access
+authentication port-control auto
+dot1x pae authenticator
+
+wr
+cop r st
+
+
+
+
